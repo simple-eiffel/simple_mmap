@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>simple_mmap - Memory-Mapped Files for Eiffel</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/png" href="images/logo.png">
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            <img src="images/logo.png" alt="simple_* logo" class="logo">
+        </div>
+        <h1>simple_mmap</h1>
+        <p class="tagline">Memory-Mapped Files for Eiffel</p>
+        <div class="badges">
+            <span class="badge badge-rfc">Foundation Layer</span>
+            <span class="badge badge-version">v1.0.0</span>
+            <span class="badge badge-license">MIT</span>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#quick-start">Quick Start</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#api">API Reference</a></li>
+            <li><a href="https://github.com/ljr1981/simple_mmap">GitHub</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <section id="overview">
+            <h2>Overview</h2>
+            <p>
+                <strong>simple_mmap</strong> provides SCOOP-compatible memory-mapped file operations for
+                Eiffel applications. It wraps the Win32 file mapping API through a clean C interface,
+                enabling efficient file I/O and shared memory without threading complications.
+            </p>
+            <p>
+                The library supports file-backed mappings, anonymous mappings, and shared memory segments
+                for inter-process communication, with type-safe read/write operations for bytes, integers,
+                strings, and raw byte arrays.
+            </p>
+            <p>
+                Part of the <strong>simple_*</strong> ecosystem of focused, single-purpose Eiffel libraries.
+            </p>
+        </section>
+
+        <section id="quick-start">
+            <h2>Quick Start</h2>
+            <h3>Installation</h3>
+            <pre><code>&lt;library name="simple_mmap" location="$SIMPLE_MMAP\simple_mmap.ecf"/&gt;</code></pre>
+
+            <h3>File Mapping</h3>
+            <pre><code>local
+    mmap: SIMPLE_MMAP
+do
+    -- Map an existing file
+    create mmap.make_from_file ("data.bin", mmap.Access_read_write)
+
+    if mmap.is_valid then
+        -- Read/write at specific offsets
+        mmap.write_string (0, "Hello, World!")
+        print (mmap.read_string (0))
+        mmap.close
+    end
+end</code></pre>
+
+            <h3>Anonymous Mapping</h3>
+            <pre><code>local
+    mmap: SIMPLE_MMAP
+do
+    -- Create memory-only mapping (no file)
+    create mmap.make_anonymous (4096)  -- 4KB
+
+    if mmap.is_valid then
+        mmap.write_integer (0, 42)
+        print (mmap.read_integer (0))  -- 42
+        mmap.close
+    end
+end</code></pre>
+
+            <h3>Shared Memory (IPC)</h3>
+            <pre><code>local
+    mmap: SIMPLE_MMAP
+do
+    -- Create named shared memory accessible from other processes
+    create mmap.make_shared ("MySharedMem", 1024)
+
+    if mmap.is_valid then
+        mmap.write_string (0, "Shared data")
+        mmap.close
+    end
+end</code></pre>
+        </section>
+
+        <section id="features">
+            <h2>Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>File Mapping</h4>
+                    <p>Map entire files or file regions into memory</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Anonymous Mapping</h4>
+                    <p>Create memory-backed mappings without files</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Shared Memory</h4>
+                    <p>Named mappings for inter-process communication</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Type-Safe I/O</h4>
+                    <p>Read/write bytes, integers, strings, and byte arrays</p>
+                </div>
+            </div>
+
+            <h3>Access Modes</h3>
+            <table>
+                <tr><th>Mode</th><th>Description</th></tr>
+                <tr><td><code>Access_read</code></td><td>Read-only access</td></tr>
+                <tr><td><code>Access_read_write</code></td><td>Read and write access</td></tr>
+            </table>
+        </section>
+
+        <section id="api">
+            <h2>API Reference</h2>
+
+            <h3>Creation</h3>
+            <table>
+                <tr><th>Feature</th><th>Description</th></tr>
+                <tr><td><code>make_from_file (path, access)</code></td><td>Create mapping from file</td></tr>
+                <tr><td><code>make_anonymous (size)</code></td><td>Create memory-only mapping</td></tr>
+                <tr><td><code>make_shared (name, size)</code></td><td>Create named shared memory</td></tr>
+            </table>
+
+            <h3>Reading Data</h3>
+            <table>
+                <tr><th>Feature</th><th>Description</th></tr>
+                <tr><td><code>read_byte (offset)</code></td><td>Read single byte at offset</td></tr>
+                <tr><td><code>read_integer (offset)</code></td><td>Read 32-bit integer at offset</td></tr>
+                <tr><td><code>read_string (offset)</code></td><td>Read null-terminated string</td></tr>
+                <tr><td><code>read_bytes (offset, count)</code></td><td>Read array of bytes</td></tr>
+            </table>
+
+            <h3>Writing Data</h3>
+            <table>
+                <tr><th>Feature</th><th>Description</th></tr>
+                <tr><td><code>write_byte (offset, value)</code></td><td>Write single byte</td></tr>
+                <tr><td><code>write_integer (offset, value)</code></td><td>Write 32-bit integer</td></tr>
+                <tr><td><code>write_string (offset, value)</code></td><td>Write null-terminated string</td></tr>
+                <tr><td><code>write_bytes (offset, bytes)</code></td><td>Write array of bytes</td></tr>
+            </table>
+
+            <h3>Status</h3>
+            <table>
+                <tr><th>Feature</th><th>Description</th></tr>
+                <tr><td><code>is_valid</code></td><td>Is the mapping valid?</td></tr>
+                <tr><td><code>size</code></td><td>Size of mapped region in bytes</td></tr>
+                <tr><td><code>close</code></td><td>Unmap and release resources</td></tr>
+            </table>
+        </section>
+    </main>
+
+    <footer>
+        <p>Part of the <a href="https://github.com/ljr1981">simple_*</a> library collection</p>
+        <p>Dependencies: base, encoding</p>
+        <p class="copyright">MIT License - Copyright (c) 2024-2025, Larry Rix</p>
+    </footer>
+</body>
+</html>
