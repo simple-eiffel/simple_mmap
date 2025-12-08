@@ -4,7 +4,7 @@
 
 # SIMPLE_MMAP
 
-**[Documentation](https://ljr1981.github.io/simple_mmap/)**
+**[Documentation](https://simple-eiffel.github.io/simple_mmap/)**
 
 ### Memory-Mapped File Library for Eiffel
 
@@ -59,7 +59,7 @@ The library supports file-backed mappings, anonymous mappings, and shared memory
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/ljr1981/simple_mmap.git
+git clone https://github.com/simple-eiffel/simple_mmap.git
 ```
 
 2. Compile the C library:
@@ -262,8 +262,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Contact
 
 - **Author:** Larry Rix
-- **Repository:** https://github.com/ljr1981/simple_mmap
-- **Issues:** https://github.com/ljr1981/simple_mmap/issues
+- **Repository:** https://github.com/simple-eiffel/simple_mmap
+- **Issues:** https://github.com/simple-eiffel/simple_mmap/issues
 
 ---
 
