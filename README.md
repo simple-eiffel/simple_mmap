@@ -68,14 +68,14 @@ cd simple_mmap/Clib
 compile.bat
 ```
 
-3. Set the environment variable:
+3. Set the ecosystem environment variable (one-time setup for all simple_* libraries):
 ```bash
-set SIMPLE_MMAP=D:\path\to\simple_mmap
+set SIMPLE_EIFFEL=D:\prod
 ```
 
 4. Add to your ECF file:
 ```xml
-<library name="simple_mmap" location="$SIMPLE_MMAP\simple_mmap.ecf"/>
+<library name="simple_mmap" location="$SIMPLE_EIFFEL/simple_mmap/simple_mmap.ecf"/>
 ```
 
 ### Basic Usage
