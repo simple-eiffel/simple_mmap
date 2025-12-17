@@ -1,14 +1,21 @@
 /*
- * simple_mmap.h - Memory-mapped file access for Eiffel
+ * simple_mmap.h - Cross-platform Memory-mapped file access for Eiffel
+ *
+ * Windows: Uses Win32 CreateFileMapping/MapViewOfFile
+ * Linux: Uses POSIX mmap/munmap
+ *
  * Copyright (c) 2025 Larry Rix - MIT License
  */
 
 #ifndef SIMPLE_MMAP_H
 #define SIMPLE_MMAP_H
 
+#include <stddef.h>
+
+#if defined(_WIN32) || defined(EIF_WINDOWS)
 #include <windows.h>
 
-/* Memory mapping handle structure */
+/* Memory mapping handle structure - Windows */
 typedef struct {
     HANDLE file_handle;
     HANDLE mapping_handle;
@@ -17,6 +24,20 @@ typedef struct {
     int is_writable;
     char* error_message;
 } smm_mapping;
+
+#else
+/* Memory mapping handle structure - POSIX */
+typedef struct {
+    int file_fd;
+    void* view;
+    size_t size;
+    int is_writable;
+    int is_shared;          /* Named shared memory */
+    char* shared_name;      /* Name for shm_unlink */
+    char* error_message;
+} smm_mapping;
+
+#endif
 
 /* Create a new memory mapping from a file.
  * Returns NULL on failure.

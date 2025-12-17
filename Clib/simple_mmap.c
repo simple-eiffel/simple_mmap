@@ -1,5 +1,9 @@
 /*
- * simple_mmap.c - Memory-mapped file access for Eiffel
+ * simple_mmap.c - Cross-platform Memory-mapped file access for Eiffel
+ *
+ * Windows: Uses Win32 CreateFileMapping/MapViewOfFile
+ * Linux: Uses POSIX mmap/munmap
+ *
  * Copyright (c) 2025 Larry Rix - MIT License
  */
 
@@ -8,6 +12,9 @@
 #include <string.h>
 
 static char last_error_msg[512] = {0};
+
+#if defined(_WIN32) || defined(EIF_WINDOWS)
+/* ============ WINDOWS IMPLEMENTATION ============ */
 
 static void store_last_error(void) {
     DWORD err = GetLastError();
@@ -29,6 +36,38 @@ static smm_mapping* create_mapping_struct(void) {
     }
     return m;
 }
+
+#else
+/* ============ POSIX IMPLEMENTATION ============ */
+
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
+
+static void store_last_error(void) {
+    const char* err = strerror(errno);
+    strncpy(last_error_msg, err, sizeof(last_error_msg) - 1);
+    last_error_msg[sizeof(last_error_msg) - 1] = '\0';
+}
+
+static smm_mapping* create_mapping_struct(void) {
+    smm_mapping* m = (smm_mapping*)malloc(sizeof(smm_mapping));
+    if (m) {
+        memset(m, 0, sizeof(smm_mapping));
+        m->file_fd = -1;
+        m->view = NULL;
+        m->is_shared = 0;
+        m->shared_name = NULL;
+    }
+    return m;
+}
+
+#endif
+
+#if defined(_WIN32) || defined(EIF_WINDOWS)
+/* ============ WINDOWS FILE MAPPING FUNCTIONS ============ */
 
 smm_mapping* smm_create_file_mapping(const char* filepath, int writable) {
     smm_mapping* m;
@@ -201,6 +240,185 @@ smm_mapping* smm_open_shared_mapping(const char* name) {
     return m;
 }
 
+#else
+/* ============ POSIX FILE MAPPING FUNCTIONS ============ */
+
+smm_mapping* smm_create_file_mapping(const char* filepath, int writable) {
+    smm_mapping* m;
+    struct stat st;
+    int flags, prot;
+
+    m = create_mapping_struct();
+    if (!m) return NULL;
+
+    if (writable) {
+        flags = O_RDWR;
+        prot = PROT_READ | PROT_WRITE;
+        m->is_writable = 1;
+    } else {
+        flags = O_RDONLY;
+        prot = PROT_READ;
+        m->is_writable = 0;
+    }
+
+    /* Open file */
+    m->file_fd = open(filepath, flags);
+    if (m->file_fd < 0) {
+        store_last_error();
+        m->error_message = strdup(last_error_msg);
+        return m;
+    }
+
+    /* Get file size */
+    if (fstat(m->file_fd, &st) < 0) {
+        store_last_error();
+        m->error_message = strdup(last_error_msg);
+        close(m->file_fd);
+        m->file_fd = -1;
+        return m;
+    }
+    m->size = (size_t)st.st_size;
+
+    /* Map file */
+    m->view = mmap(NULL, m->size, prot, MAP_SHARED, m->file_fd, 0);
+    if (m->view == MAP_FAILED) {
+        store_last_error();
+        m->error_message = strdup(last_error_msg);
+        m->view = NULL;
+        close(m->file_fd);
+        m->file_fd = -1;
+        return m;
+    }
+
+    return m;
+}
+
+smm_mapping* smm_create_anonymous_mapping(size_t size) {
+    smm_mapping* m;
+
+    m = create_mapping_struct();
+    if (!m) return NULL;
+
+    m->is_writable = 1;
+    m->size = size;
+
+    /* Create anonymous mapping */
+    m->view = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (m->view == MAP_FAILED) {
+        store_last_error();
+        m->error_message = strdup(last_error_msg);
+        m->view = NULL;
+        return m;
+    }
+
+    return m;
+}
+
+smm_mapping* smm_create_shared_mapping(const char* name, size_t size) {
+    smm_mapping* m;
+    char shm_name[256];
+    int fd;
+
+    m = create_mapping_struct();
+    if (!m) return NULL;
+
+    m->is_writable = 1;
+    m->is_shared = 1;
+    m->size = size;
+
+    /* POSIX shm_open requires name starting with / */
+    if (name[0] != '/') {
+        snprintf(shm_name, sizeof(shm_name), "/%s", name);
+    } else {
+        strncpy(shm_name, name, sizeof(shm_name) - 1);
+        shm_name[sizeof(shm_name) - 1] = '\0';
+    }
+    m->shared_name = strdup(shm_name);
+
+    /* Create or open shared memory object */
+    fd = shm_open(shm_name, O_CREAT | O_RDWR, 0666);
+    if (fd < 0) {
+        store_last_error();
+        m->error_message = strdup(last_error_msg);
+        return m;
+    }
+
+    /* Set size */
+    if (ftruncate(fd, size) < 0) {
+        store_last_error();
+        m->error_message = strdup(last_error_msg);
+        close(fd);
+        return m;
+    }
+
+    /* Map */
+    m->view = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    close(fd);  /* fd no longer needed after mmap */
+
+    if (m->view == MAP_FAILED) {
+        store_last_error();
+        m->error_message = strdup(last_error_msg);
+        m->view = NULL;
+        return m;
+    }
+
+    return m;
+}
+
+smm_mapping* smm_open_shared_mapping(const char* name) {
+    smm_mapping* m;
+    char shm_name[256];
+    int fd;
+    struct stat st;
+
+    m = create_mapping_struct();
+    if (!m) return NULL;
+
+    m->is_writable = 1;
+    m->is_shared = 1;
+
+    /* POSIX shm_open requires name starting with / */
+    if (name[0] != '/') {
+        snprintf(shm_name, sizeof(shm_name), "/%s", name);
+    } else {
+        strncpy(shm_name, name, sizeof(shm_name) - 1);
+        shm_name[sizeof(shm_name) - 1] = '\0';
+    }
+    m->shared_name = strdup(shm_name);
+
+    /* Open existing shared memory object */
+    fd = shm_open(shm_name, O_RDWR, 0666);
+    if (fd < 0) {
+        store_last_error();
+        m->error_message = strdup(last_error_msg);
+        return m;
+    }
+
+    /* Get size */
+    if (fstat(fd, &st) < 0) {
+        store_last_error();
+        m->error_message = strdup(last_error_msg);
+        close(fd);
+        return m;
+    }
+    m->size = (size_t)st.st_size;
+
+    /* Map */
+    m->view = mmap(NULL, m->size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    close(fd);
+
+    if (m->view == MAP_FAILED) {
+        store_last_error();
+        m->error_message = strdup(last_error_msg);
+        m->view = NULL;
+        return m;
+    }
+
+    return m;
+}
+
+#endif
+
 void* smm_get_data(smm_mapping* mapping) {
     return mapping ? mapping->view : NULL;
 }
@@ -262,7 +480,11 @@ void smm_write_int32(smm_mapping* mapping, size_t offset, int value) {
 
 int smm_flush(smm_mapping* mapping) {
     if (!mapping || !mapping->view) return 0;
+#if defined(_WIN32) || defined(EIF_WINDOWS)
     return FlushViewOfFile(mapping->view, 0) ? 1 : 0;
+#else
+    return msync(mapping->view, mapping->size, MS_SYNC) == 0 ? 1 : 0;
+#endif
 }
 
 int smm_is_valid(smm_mapping* mapping) {
@@ -279,6 +501,7 @@ const char* smm_get_error(smm_mapping* mapping) {
 
 void smm_close(smm_mapping* mapping) {
     if (mapping) {
+#if defined(_WIN32) || defined(EIF_WINDOWS)
         if (mapping->view) {
             UnmapViewOfFile(mapping->view);
         }
@@ -288,6 +511,20 @@ void smm_close(smm_mapping* mapping) {
         if (mapping->file_handle != INVALID_HANDLE_VALUE) {
             CloseHandle(mapping->file_handle);
         }
+#else
+        if (mapping->view) {
+            munmap(mapping->view, mapping->size);
+        }
+        if (mapping->file_fd >= 0) {
+            close(mapping->file_fd);
+        }
+        if (mapping->is_shared && mapping->shared_name) {
+            shm_unlink(mapping->shared_name);
+        }
+        if (mapping->shared_name) {
+            free(mapping->shared_name);
+        }
+#endif
         if (mapping->error_message) {
             free(mapping->error_message);
         }
