@@ -27,8 +27,13 @@
 				<platform excluded_value="windows"/>
 			</condition>
 		</external_object>
-		<library name="base" location="$ISE_LIBRARY\library\base\base.ecf"/>
-		<cluster name="src" location=".\src\" recursive="true"/>
+		<external_linker_flag value="-lrt">
+			<condition>
+				<platform excluded_value="windows"/>
+			</condition>
+		</external_linker_flag>
+		<library name="base" location="$ISE_LIBRARY/library/base/base.ecf"/>
+		<cluster name="src" location="./src/" recursive="true"/>
 	</target>
 	<target name="simple_mmap_tests" extends="simple_mmap">
 		<root class="TEST_APP" feature="make"/>
@@ -37,7 +42,7 @@
 		</option>
 		<setting name="console_application" value="true"/>
 		<library name="simple_testing" location="$SIMPLE_EIFFEL/simple_testing/simple_testing.ecf"/>
-		<library name="testing" location="$ISE_LIBRARY\library\testing\testing.ecf"/>
-		<cluster name="tests" location=".\testing\" recursive="true"/>
+		<library name="testing" location="$ISE_LIBRARY/library/testing/testing.ecf"/>
+		<cluster name="tests" location="./testing/" recursive="true"/>
 	</target>
 </system>
