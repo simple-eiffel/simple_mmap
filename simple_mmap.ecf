@@ -29,7 +29,7 @@
 		</external_object>
 		<external_linker_flag value="-lrt">
 			<condition>
-				<platform excluded_value="windows"/>
+				<platform value="unix"/>
 			</condition>
 		</external_linker_flag>
 		<library name="base" location="$ISE_LIBRARY/library/base/base.ecf"/>
