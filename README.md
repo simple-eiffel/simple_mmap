@@ -20,7 +20,7 @@
 
 ## Overview
 
-SIMPLE_MMAP provides SCOOP-compatible memory-mapped file operations for Eiffel applications. It wraps the Win32 file mapping API (CreateFileMapping, MapViewOfFile, etc.) through a clean C interface, enabling efficient file I/O and shared memory without threading complications.
+SIMPLE_MMAP provides SCOOP-compatible memory-mapped file operations for Eiffel applications. It wraps the Win32 file mapping API (CreateFileMapping, MapViewOfFile, etc.) on Windows and POSIX `mmap`/`shm_open` on macOS and Linux through a clean C interface, enabling efficient file I/O and shared memory without threading complications.
 
 The library supports file-backed mappings, anonymous mappings, and shared memory segments for inter-process communication, with type-safe read/write operations for bytes, integers, strings, and raw byte arrays.
 
@@ -65,13 +65,21 @@ git clone https://github.com/simple-eiffel/simple_mmap.git
 
 2. Compile the C library:
 ```bash
+# Windows
 cd simple_mmap/Clib
 compile.bat
+
+# macOS/Linux (from simple_mmap/)
+make -C Clib
 ```
 
 3. Set the ecosystem environment variable (one-time setup for all simple_* libraries):
 ```bash
+# Windows
 set SIMPLE_EIFFEL=D:\prod
+
+# macOS/Linux
+export SIMPLE_EIFFEL=$HOME/simple_eiffel
 ```
 
 4. Add to your ECF file:
@@ -216,6 +224,8 @@ ec -config simple_mmap.ecf -target simple_mmap_tests -c_compile
 ./EIFGENs/simple_mmap_tests/W_code/simple_mmap.exe
 ```
 
+(No `.exe` on macOS/Linux: run `./EIFGENs/simple_mmap_tests/W_code/simple_mmap`.)
+
 **Test Results:** 10 tests passing
 
 ---
@@ -227,12 +237,13 @@ simple_mmap/
 ├── Clib/                       # C wrapper library
 │   ├── simple_mmap.h           # C header file
 │   ├── simple_mmap.c           # C implementation
-│   └── compile.bat             # Build script
+│   ├── compile.bat             # Build script (Windows)
+│   └── Makefile                # make -C Clib (macOS/Linux)
 ├── src/                        # Eiffel source
 │   └── simple_mmap.e           # Main wrapper class
 ├── testing/                    # Test suite
-│   ├── application.e           # Test runner
-│   └── test_simple_mmap.e      # Test cases
+│   ├── test_app.e              # Test runner
+│   └── lib_tests.e             # Test cases
 ├── simple_mmap.ecf             # Library configuration
 ├── README.md                   # This file
 └── LICENSE                     # MIT License
@@ -242,15 +253,21 @@ simple_mmap/
 
 ## Dependencies
 
-- **Windows OS** - File mapping API is Windows-specific
+- **Windows, macOS or Linux**
 - **EiffelStudio 23.09+** - Development environment
-- **Visual Studio C++ Build Tools** - For compiling C wrapper
+- **C compiler** - Visual Studio Build Tools on Windows; clang or gcc on macOS/Linux (links `-lrt` on Linux)
+
+---
+
+## Platform Notes
+
+On macOS and Linux, closing any handle to a named shared mapping removes its name. On Windows the name stays until the last handle closes.
 
 ---
 
 ## SCOOP Compatibility
 
-SIMPLE_MMAP is fully SCOOP-compatible. The C wrapper handles all Win32 API calls synchronously without threading dependencies, making it safe for use in concurrent Eiffel applications.
+SIMPLE_MMAP is fully SCOOP-compatible. The C wrapper makes all OS calls synchronously without threading dependencies, making it safe for use in concurrent Eiffel applications.
 
 ---
 
@@ -271,5 +288,5 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Acknowledgments
 
 - Built with Claude Opus 4.5 (Anthropic)
-- Uses Win32 File Mapping API (Microsoft)
+- Uses Win32 File Mapping API (Microsoft) and POSIX mmap
 - Part of the simple_ library collection for Eiffel
